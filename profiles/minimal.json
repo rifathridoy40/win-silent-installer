@@ -1,0 +1,4 @@
+{
+    "apps": ["chrome", "vscode", "git", "node", "7zip", "vlc", "powertoys"],
+    "node": "lts"
+}

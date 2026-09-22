@@ -1,0 +1,18 @@
+{
+    "apps": [
+        "chrome", "zoom",
+        "vscode", "intellij", "toolbox",
+        "claude", "copilot", "opencode",
+        "node", "python", "jdk",
+        "git", "docker", "xampp", "pgadmin",
+        "ffmpeg", "openssl", "adb",
+        "tabby", "warp",
+        "powertoys",
+        "vlc", "qbittorrent"
+    ],
+    "node": "lts",
+    "python": ["3.13"],
+    "jdk": ["temurin:21", "temurin:17"],
+    "xampp": "8.2",
+    "intellij": "ultimate"
+}

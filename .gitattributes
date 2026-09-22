@@ -1,0 +1,5 @@
+# Windows scripts must keep CRLF line endings (cmd.exe misparses LF-only batch files)
+*.ps1  text eol=crlf
+*.cmd  text eol=crlf
+*.json text eol=crlf
+*.md   text eol=crlf
