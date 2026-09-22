@@ -1,9 +1,9 @@
 # Windows Silent Installer - web bootstrapper.
 #
-#   irm https://raw.githubusercontent.com/OWNER/win-silent-installer/main/get.ps1 | iex
+#   irm https://raw.githubusercontent.com/rifathridoy40/win-silent-installer/main/get.ps1 | iex
 #
 # With arguments:
-#   & ([scriptblock]::Create((irm https://raw.githubusercontent.com/OWNER/win-silent-installer/main/get.ps1))) -Apps chrome,git,node -Yes
+#   & ([scriptblock]::Create((irm https://raw.githubusercontent.com/rifathridoy40/win-silent-installer/main/get.ps1))) -Apps chrome,git,node -Yes
 #
 # Downloads the repository to %LOCALAPPDATA%\win-silent-installer and runs install.ps1 from there.
 # It runs as a real file (not through iex), so self-elevation works and 'exit' can't close this window.
@@ -11,7 +11,7 @@
 # ($env:WSI_ZIP_URL to use any zip of this repo instead).
 
 & {
-    $repo   = if ($env:WSI_REPO)   { $env:WSI_REPO }   else { 'OWNER/win-silent-installer' }
+    $repo   = if ($env:WSI_REPO)   { $env:WSI_REPO }   else { 'rifathridoy40/win-silent-installer' }
     $branch = if ($env:WSI_BRANCH) { $env:WSI_BRANCH } else { 'main' }
     $home_  = Join-Path $env:LOCALAPPDATA 'win-silent-installer'
     $app    = Join-Path $home_ 'app'

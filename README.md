@@ -1,8 +1,10 @@
 # Windows Silent Installer
 
-Sets up a fresh Windows 10/11 machine from a single script. You tick apps in a menu, or pass them on the
-command line. Everything installs silently (no installer windows, no clicking Next).
+Sets up a fresh Windows 10/11 machine from a single script. You pick apps in a full-screen, keyboard-driven
+picker, or pass them on the command line. Everything installs silently (no installer windows, no clicking Next).
 
+- **Interactive picker:** arrow keys, search, a details panel for each app, "installed" badges, version dialogs, and
+  a review screen before anything is installed.
 - Uses **winget** first. If winget is missing or too old (common on a fresh Windows 10), the script installs it.
 - **Falls back** to the official installer, npm, or a vendor script when winget fails for an app.
 - **Selectable versions** for Node.js, Python, the JDK (vendor too), XAMPP (PHP version) and IntelliJ IDEA (edition).
@@ -17,26 +19,26 @@ command line. Everything installs silently (no installer windows, no clicking Ne
 Open **PowerShell** (Win+X, then Terminal or PowerShell. It doesn't need to be run as administrator) and paste:
 
 ```powershell
-irm https://raw.githubusercontent.com/OWNER/win-silent-installer/main/get.ps1 | iex
+irm https://raw.githubusercontent.com/rifathridoy40/win-silent-installer/main/get.ps1 | iex
 ```
 
-Approve the UAC prompt, tick the apps you want, answer the version questions, and confirm.
+Approve the UAC prompt, then pick your apps in the picker (see [Using the picker](#using-the-picker)).
 
-To install without the menu, pass options to the same script:
+To install without the picker, pass options to the same script:
 
 ```powershell
 # the recommended set, no questions
-& ([scriptblock]::Create((irm https://raw.githubusercontent.com/OWNER/win-silent-installer/main/get.ps1))) -Recommended -Yes
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/rifathridoy40/win-silent-installer/main/get.ps1))) -Recommended -Yes
 
 # a bundled profile, or your own profile hosted anywhere
-& ([scriptblock]::Create((irm https://raw.githubusercontent.com/OWNER/win-silent-installer/main/get.ps1))) -Config full-dev -Yes
-& ([scriptblock]::Create((irm https://raw.githubusercontent.com/OWNER/win-silent-installer/main/get.ps1))) -Config https://gist.githubusercontent.com/.../my-pc.json -Yes
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/rifathridoy40/win-silent-installer/main/get.ps1))) -Config full-dev -Yes
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/rifathridoy40/win-silent-installer/main/get.ps1))) -Config https://gist.githubusercontent.com/.../my-pc.json -Yes
 ```
 
 From **cmd.exe** or the Run dialog (Win+R):
 
 ```bat
-powershell -ExecutionPolicy Bypass -c "[Net.ServicePointManager]::SecurityProtocol=3072; irm https://raw.githubusercontent.com/OWNER/win-silent-installer/main/get.ps1 | iex"
+powershell -ExecutionPolicy Bypass -c "[Net.ServicePointManager]::SecurityProtocol=3072; irm https://raw.githubusercontent.com/rifathridoy40/win-silent-installer/main/get.ps1 | iex"
 ```
 
 > On some fresh Windows 10 installs, the short command fails with *"Could not create SSL/TLS secure channel"*.
@@ -52,8 +54,37 @@ Logs and your saved selection are kept in `%LOCALAPPDATA%\win-silent-installer\l
 1. Clone the repo or copy this folder to the PC (for example, from a USB stick).
 2. Double-click **`install.cmd`**, or run `.\install.cmd` from a terminal.
 
-Menu keys: `1 4 7-9` toggles items, `a` selects all, `n` clears the selection, `r` restores the recommended set,
-**Enter** continues, and `q` quits.
+## Using the picker
+
+```
+  ♦ WINDOWS SILENT INSTALLER  v2.0.0                                  24 selected  ·  47 apps
+  Choose the apps to install on this PC, then press Enter to review.
+  ──────────────────────────────────────────────────────────────────────────────────────────
+  LANGUAGES & RUNTIMES  3/5                          ┌─ Node.js ──────────────────────────┐
+ ► ●  Node.js  LTS  ►                   √ v22.18.0   │ JavaScript runtime with npm. ...   │
+   ●  Python  3.13  ►                                │ Source    winget  OpenJS.NodeJS    │
+   ●  Java JDK  Eclipse Temurin 21  ►                │ Status    installed (v22.18.0)     │
+   ○  Go                                             │ Version   LTS                      │
+   ○  Rust (rustup)                                  │           press → to change        │
+```
+
+| Key | Action |
+|---|---|
+| `↑` `↓` `PgUp` `PgDn` `Home` `End` | Move |
+| `Tab` / `Shift+Tab` | Jump to the next / previous category |
+| `Space` | Select or unselect the app |
+| `→` | Choose versions: Node.js, Python, Java JDK (and vendor), XAMPP (PHP), IntelliJ IDEA (edition) |
+| `/` | Search by name, category or description. `Enter` keeps the filter, `Esc` clears it. |
+| `A` / `N` / `R` | Select all apps in the list / clear the selection / restore the recommended set |
+| `C` | Select or unselect the whole category |
+| `Enter` | Open the review screen. There, `Enter` installs, `F` switches reinstalling on or off, and `Esc` goes back. |
+| `Esc` / `Q` | Quit without installing |
+
+In the version dialogs, `Space` selects a version, `D` makes it the default (the Python on PATH, or `JAVA_HOME`),
+`←` `→` changes the JDK vendor, and `Enter` applies. Nothing is installed until you confirm on the review screen.
+
+The picker uses symbols from the standard Windows console fonts. If they look wrong in your terminal, run
+`$env:WSI_ASCII = 1` first to switch to plain ASCII.
 
 ## Unattended usage
 
