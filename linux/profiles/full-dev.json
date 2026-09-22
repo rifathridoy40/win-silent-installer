@@ -1,0 +1,17 @@
+{
+    "apps": [
+        "chrome", "zoom",
+        "vscode", "intellij", "pycharm", "phpstorm", "toolbox",
+        "claude", "copilot", "opencode",
+        "node", "python", "jdk",
+        "git", "docker", "pgadmin", "buildessential",
+        "ffmpeg", "openssl", "adb", "cliutils",
+        "office", "vlc", "qbittorrent"
+    ],
+    "node": "lts",
+    "python": ["3.13"],
+    "jdk": ["temurin:21", "temurin:17"],
+    "intellij": "ultimate",
+    "pycharm": "professional",
+    "office": "libreoffice"
+}

@@ -1,4 +1,7 @@
-# Windows Silent Installer
+# Silent Installer for Windows and Ubuntu
+
+Sets up a fresh machine from a single script: **Windows 10/11** (`install.ps1`) or **Ubuntu/Debian**
+(`linux/install.sh`). Both have the same picker, the same options and the same profiles.
 
 Sets up a fresh Windows 10/11 machine from a single script. You pick apps in a full-screen, keyboard-driven
 picker, or pass them on the command line. Everything installs silently (no installer windows, no clicking Next).
@@ -48,6 +51,43 @@ powershell -ExecutionPolicy Bypass -c "[Net.ServicePointManager]::SecurityProtoc
 `get.ps1` downloads this repo to `%LOCALAPPDATA%\win-silent-installer\app` and runs `install.ps1` from there.
 Logs and your saved selection are kept in `%LOCALAPPDATA%\win-silent-installer\logs`. To use a fork, set
 `$env:WSI_REPO = 'you/your-fork'` (and optionally `$env:WSI_BRANCH`) before running.
+
+## Ubuntu / Debian
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rifathridoy40/win-silent-installer/main/linux/get.sh | bash
+```
+
+Same picker, same keys. Unattended examples:
+
+```bash
+curl -fsSL .../linux/get.sh | bash -s -- --recommended --yes
+curl -fsSL .../linux/get.sh | bash -s -- --apps chrome,vscode,git,node,jdk --node 22 --jdk 21,17 --yes
+curl -fsSL .../linux/get.sh | bash -s -- --config full-dev --yes
+```
+
+Or from a clone: `bash linux/install.sh` (add `--list`, `--dry-run`, `--help` as needed).
+
+Linux options use the same names in `--flag` form: `--apps`, `--all`, `--recommended`, `--config`, `--node`,
+`--python`, `--jdk`, `--xampp`, `--intellij`, `--pycharm`, `--office`, `--yes`, `--force`, `--dry-run`,
+`--reboot`, `--show-output`, `--log-dir`, `--list`.
+
+It installs with **apt** first, then falls back to **snap**, **flatpak**, a vendor **.deb**, **npm** or the
+vendor's own install script. Repositories (Microsoft, Docker, Brave, GitHub CLI, pgAdmin, Cloudflare, Adoptium,
+NodeSource, deadsnakes) are added with signed keyrings, the way each vendor documents. It needs `sudo` once and
+keeps the session alive while it runs.
+
+**Differences from the Windows catalog**
+
+| Windows-only | Linux equivalent in the catalog |
+|---|---|
+| Microsoft Office | Office suite: LibreOffice, OnlyOffice or WPS Office |
+| PowerToys, WinZip, Everything, ShareX | GNOME Tweaks, 7-Zip/archives, Flameshot, Timeshift, GParted |
+| Windows Terminal, Termius, Tabby | Tabby, Termius, plus tmux, Zsh, Neovim and the CLI essentials bundle |
+| Cloudflare WARP (GUI) | `warp-cli` (command line) |
+
+Extra Linux entries: build tools, CLI essentials (curl/wget/jq/ripgrep/fzf/htop), a distro LAMP stack as an
+alternative to XAMPP, PostgreSQL server, OpenSSH server, network tools and Flatpak + Flathub.
 
 ## Run from a local copy
 
