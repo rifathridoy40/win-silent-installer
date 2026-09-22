@@ -4,3 +4,4 @@
 *.json text eol=crlf
 *.md   text eol=crlf
 *.sh   text eol=lf
+linux/** text eol=lf
