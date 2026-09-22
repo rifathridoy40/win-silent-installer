@@ -649,6 +649,8 @@ $Catalog = @(
 
     App vscode     'Visual Studio Code'         $cEditor Microsoft.VisualStudioCode -Rec -CheckCmd code -Alias code, 'vs-code' -Desc "Microsoft's code editor. Adds 'code' to PATH and Explorer 'Open with Code' entries." -Fallback @(@{ Type = 'exe'; Url = 'https://update.code.visualstudio.com/latest/win32-x64/stable'; File = 'VSCodeSetup.exe'; Args = '/VERYSILENT /NORESTART /MERGETASKS=!runcode,addcontextmenufiles,addcontextmenufolders,associatewithfiles,addtopath' })
     App intellij   'IntelliJ IDEA'              $cEditor -Special intellij -Rec -Alias idea -Desc 'JetBrains IDE for Java and Kotlin. Ultimate is the unified IDE with a free tier; Community is the classic free edition.'
+    App pycharm    'PyCharm'                    $cEditor JetBrains.PyCharm -Rec -Alias 'pycharm-community', 'pycharm-professional' -Desc 'JetBrains IDE for Python. The unified edition is free for core features, with Pro features on a subscription.'
+    App phpstorm   'PhpStorm'                   $cEditor JetBrains.PhpStorm -Rec -Alias php-storm -Desc 'JetBrains IDE for PHP, Laravel, Symfony and WordPress. Paid, with a 30-day free trial.'
     App toolbox    'JetBrains Toolbox'          $cEditor JetBrains.Toolbox -Rec -Alias 'jetbrains-toolbox' -Desc 'Install, update and manage every JetBrains IDE from one place.'
     App notepadpp  'Notepad++'                  $cEditor 'Notepad++.Notepad++' -Alias 'notepad++' -Desc 'Lightweight source-code and text editor.'
     App cursor     'Cursor'                     $cEditor Anysphere.Cursor -Desc 'AI-first code editor built on VS Code.'

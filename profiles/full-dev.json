@@ -1,7 +1,7 @@
 {
     "apps": [
         "chrome", "zoom",
-        "vscode", "intellij", "toolbox",
+        "vscode", "intellij", "pycharm", "phpstorm", "toolbox",
         "claude", "copilot", "opencode",
         "node", "python", "jdk",
         "git", "docker", "xampp", "pgadmin",

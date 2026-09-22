@@ -134,7 +134,7 @@ Apps marked with ★ are recommended (ticked by default).
 | Category | Apps |
 |---|---|
 | Browsers & communication | Chrome ★, Firefox, Brave, Zoom ★, Telegram, Discord, Slack |
-| Editors & IDEs | VS Code ★, IntelliJ IDEA ★, JetBrains Toolbox ★, Notepad++, Cursor |
+| Editors & IDEs | VS Code ★, IntelliJ IDEA ★, PyCharm ★, PhpStorm ★, JetBrains Toolbox ★, Notepad++, Cursor |
 | AI coding CLIs | Claude Code ★, GitHub Copilot CLI ★, OpenCode ★, Gemini CLI, Codex CLI |
 | Languages & runtimes | Node.js ★, Python ★, JDK ★, Go, Rust |
 | Dev tools & databases | Git ★, GitHub CLI, Docker Desktop ★, XAMPP ★, pgAdmin 4 ★, DBeaver, Postman |
