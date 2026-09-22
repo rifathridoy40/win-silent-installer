@@ -119,6 +119,8 @@ After each run, the selection is saved to `logs\last-selection.json`. To repeat 
 | `-Python` | One or more versions: `3.13` (default), `3.12,3.13`, or an exact version like `3.12.8`. The **first** one goes on PATH. |
 | `-Jdk` | One or more `[vendor:]major` values: `21` (default), `17,21`, `microsoft:21`. Vendors: `temurin` (default), `microsoft`, `zulu`, `corretto`, `oracle`. The **first** one becomes `JAVA_HOME`. |
 | `-Xampp` | `8.2` (default) or `8.1` |
+| `-Office` | `m365` (default), `home2024`, `ltsc2024`, `ltsc2021` |
+| `-OfficeKey` | Product key for a volume (LTSC) edition. It is never written to logs or saved profiles. |
 | `-IntelliJ` | `ultimate` (default; the unified IDE with a free tier) or `community` |
 | `-Yes` | Skip all questions and use the defaults |
 | `-Force` | Reinstall apps that are already installed |
@@ -133,6 +135,7 @@ Apps marked with ★ are recommended (ticked by default).
 
 | Category | Apps |
 |---|---|
+| Office | Microsoft Office: Microsoft 365, Office Home 2024, Office LTSC 2024/2021 (from Microsoft) |
 | Browsers & communication | Chrome ★, Firefox, Brave, Zoom ★, Telegram, Discord, Slack |
 | Editors & IDEs | VS Code ★, IntelliJ IDEA ★, PyCharm ★, PhpStorm ★, JetBrains Toolbox ★, Notepad++, Cursor |
 | AI coding CLIs | Claude Code ★, GitHub Copilot CLI ★, OpenCode ★, Gemini CLI, Codex CLI |
@@ -152,6 +155,11 @@ App keepass 'KeePassXC' $cUtil KeePassXCTeam.KeePassXC
 To find an app's winget ID, run `winget search <name>`.
 
 ## Notes
+
+- **Microsoft Office** is downloaded straight from Microsoft's servers and installed silently with the official
+  Office Deployment Tool, in the Windows display language (falling back to English), 64-bit, with updates on.
+  Microsoft 365 and Office Home 2024 activate when you sign in to Word. The LTSC editions need a volume license key
+  (entered in the picker, or with `-OfficeKey`) or your organization's KMS server.
 
 - **Terminus:** Terminus was renamed **Tabby**, so the `tabby` key (alias `terminus`) installs it. If you meant the
   Termius SSH client, select `termius` instead.

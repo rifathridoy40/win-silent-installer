@@ -5,7 +5,7 @@
 
 .DESCRIPTION
     Opens an interactive, keyboard-driven picker: arrow keys to move, Space to select, Right arrow to
-    choose versions (Node.js, Python, JDK, XAMPP, IntelliJ), / to search, Enter to review and install.
+    choose versions (Node.js, Python, JDK, XAMPP, IntelliJ, Office), / to search, Enter to review and install.
 
     Everything installs silently, using winget first and falling back to official installers, npm, or
     vendor scripts. Pass -Apps / -All / -Recommended / -Config to skip the picker for unattended use.
@@ -46,6 +46,10 @@ param(
     [string]$Xampp,
     # ultimate | community
     [string]$IntelliJ,
+    # Microsoft Office edition: m365 | home2024 | ltsc2024 | ltsc2021
+    [string]$Office,
+    # Optional Office product key (XXXXX-XXXXX-XXXXX-XXXXX-XXXXX); never written to logs or saved profiles
+    [string]$OfficeKey,
     # Do not ask anything (use defaults for anything not specified).
     [switch]$Yes,
     # Reinstall even if the app is already detected.
@@ -86,7 +90,7 @@ try { $script:BaseBg = [Console]::BackgroundColor; $script:BaseFg = [Console]::F
 if ([int]$script:BaseBg -lt 0) { $script:BaseBg = 'Black' }
 if (-not $LogDir) { $LogDir = Join-Path $script:ScriptDir 'logs' }
 
-$Defaults = @{ node = 'lts'; python = @('3.13'); jdk = @('temurin:21'); xampp = '8.2'; intellij = 'ultimate' }
+$Defaults = @{ node = 'lts'; python = @('3.13'); jdk = @('temurin:21'); xampp = '8.2'; intellij = 'ultimate'; office = 'm365' }
 
 # winget / msiexec exit codes that mean "fine"
 $OkCodes     = @(0, 3010, 1641, -1978335189, -1978335135, -1978334967, -1978334966)
@@ -475,7 +479,7 @@ function Get-MethodLabel {
 
 function Get-MethodShort {
     param($m)
-    switch ($m.Type) { 'winget' { 'winget' } 'npm' { 'npm' } 'script' { 'official script' } default { "direct $($m.Type)" } }
+    switch ($m.Type) { 'winget' { 'winget' } 'npm' { 'npm' } 'script' { "$($m.Label)" } default { "direct $($m.Type)" } }
 }
 
 function Invoke-Method {
@@ -501,7 +505,7 @@ function Invoke-Method {
             if (-not (Get-Command npm.cmd -ErrorAction SilentlyContinue)) { Write-Warn 'npm not found - install Node.js first'; return $false }
             return ((Invoke-Process 'cmd.exe' "/c npm install -g $($m.Package)" "npm -g $($m.Package)") -eq 0)
         }
-        'script' { return [bool](& $m.Script) }
+        'script' { return [bool](& $m.Script $m) }
     }
     return $false
 }
@@ -541,6 +545,40 @@ $ClaudeScript = {
     $null = Invoke-Process 'powershell.exe' '-NoProfile -ExecutionPolicy Bypass -Command "irm https://claude.ai/install.ps1 | iex"' 'claude.ai/install.ps1'
     Update-SessionEnv
     return ([bool](Get-Command claude -ErrorAction SilentlyContinue) -or (Test-Path "$env:USERPROFILE\.local\bin\claude.exe"))
+}
+
+function New-OfficeConfig {
+    param([string]$Edition, [string]$Key)
+    $e = $OfficeEditions[$Edition]
+    $pidAttr = if ($Key) { " PIDKEY=`"$($Key.ToUpper())`"" } else { '' }
+    $ex = ($e.Exclude | ForEach-Object { "      <ExcludeApp ID=`"$_`" />" }) -join "`r`n"
+    $act = if ($Key) { "`r`n  <Property Name=`"AUTOACTIVATE`" Value=`"1`" />" } else { '' }
+    return @"
+<Configuration>
+  <Add OfficeClientEdition="64" Channel="$($e.Channel)">
+    <Product ID="$($e.Product)"$pidAttr>
+      <Language ID="MatchOS" Fallback="en-us" />
+$ex
+    </Product>
+  </Add>
+  <Property Name="FORCEAPPSHUTDOWN" Value="TRUE" />$act
+  <Updates Enabled="TRUE" />
+  <RemoveMSI />
+  <Display Level="None" AcceptEULA="TRUE" />
+</Configuration>
+"@
+}
+
+$OfficeScript = {
+    param($m)
+    $setup = Get-Download 'https://officecdn.microsoft.com/pr/wsus/setup.exe' 'odt-setup.exe'
+    if (-not (Test-Path $setup)) { Write-Warn 'Could not download the Office Deployment Tool'; return $false }
+    $cfg = Join-Path $script:DownloadDir 'office-config.xml'
+    Set-Content -Path $cfg -Value (New-OfficeConfig $m.Edition $m.Key) -Encoding UTF8
+    Write-Info "Downloading $($OfficeEditions[$m.Edition].Name) from Microsoft - several GB, this can take a while"
+    $code = Invoke-Process $setup "/configure `"$cfg`"" 'Office Deployment Tool'
+    Remove-Item $cfg -Force -ErrorAction SilentlyContinue   # may contain the product key
+    return (Test-ExitCode $code)
 }
 
 $ClaudePost = { param($t) Add-ToPath "$env:USERPROFILE\.local\bin" -Scope User }
@@ -629,6 +667,7 @@ function App {
 }
 
 $cBrowser = 'Browsers & Communication'
+$cOffice  = 'Office'
 $cEditor  = 'Editors & IDEs'
 $cAi      = 'AI Coding CLIs'
 $cLang    = 'Languages & Runtimes'
@@ -646,6 +685,8 @@ $Catalog = @(
     App telegram   'Telegram Desktop'           $cBrowser Telegram.TelegramDesktop -Desc 'Fast, cloud-based messenger.'
     App discord    'Discord'                    $cBrowser Discord.Discord -Desc 'Voice, video and text chat for communities.'
     App slack      'Slack'                      $cBrowser SlackTechnologies.Slack -Desc 'Team messaging and collaboration.'
+
+    App office     'Microsoft Office'           $cOffice -Special office -CheckPath "$env:ProgramFiles\Microsoft Office\root\Office16\WINWORD.EXE" -Alias 'msoffice', 'microsoft-365', 'm365' -Desc "Word, Excel, PowerPoint, Outlook and more, downloaded from Microsoft's servers with the official Office Deployment Tool. Choose Microsoft 365, Office Home 2024, or Office LTSC 2024/2021 with a volume license key." -Tip 'Open Word and sign in to activate (Microsoft 365 / Home 2024). Volume editions activate with the key you entered or your KMS server.'
 
     App vscode     'Visual Studio Code'         $cEditor Microsoft.VisualStudioCode -Rec -CheckCmd code -Alias code, 'vs-code' -Desc "Microsoft's code editor. Adds 'code' to PATH and Explorer 'Open with Code' entries." -Fallback @(@{ Type = 'exe'; Url = 'https://update.code.visualstudio.com/latest/win32-x64/stable'; File = 'VSCodeSetup.exe'; Args = '/VERYSILENT /NORESTART /MERGETASKS=!runcode,addcontextmenufiles,addcontextmenufolders,associatewithfiles,addtopath' })
     App intellij   'IntelliJ IDEA'              $cEditor -Special intellij -Rec -Alias idea -Desc 'JetBrains IDE for Java and Kotlin. Ultimate is the unified IDE with a free tier; Community is the classic free edition.'
@@ -714,6 +755,13 @@ $JdkVendors = [ordered]@{
     oracle    = 'Oracle.JDK.{0}'
 }
 $JdkHints = @{ '25' = 'LTS, newest'; '21' = 'LTS'; '17' = 'LTS'; '11' = 'LTS, older'; '8' = 'legacy' }
+# Official Microsoft Office editions, installed with the Office Deployment Tool from Microsoft's CDN
+$OfficeEditions = [ordered]@{
+    m365     = @{ Name = 'Microsoft 365 Apps'; Product = 'O365ProPlusRetail'; Channel = 'Current'; Hint = 'subscription'; Exclude = @('Groove', 'Lync', 'Teams') }
+    home2024 = @{ Name = 'Office Home 2024'; Product = 'Home2024Retail'; Channel = 'Current'; Hint = 'one-time purchase'; Exclude = @('Groove', 'Lync') }
+    ltsc2024 = @{ Name = 'Office LTSC Pro Plus 2024'; Product = 'ProPlus2024Volume'; Channel = 'PerpetualVL2024'; Hint = 'volume key or KMS'; Exclude = @('Groove', 'Lync'); Volume = $true }
+    ltsc2021 = @{ Name = 'Office LTSC Pro Plus 2021'; Product = 'ProPlus2021Volume'; Channel = 'PerpetualVL2021'; Hint = 'volume key or KMS'; Exclude = @('Groove', 'Lync'); Volume = $true }
+}
 $JdkVendorNames = @{ temurin = 'Eclipse Temurin'; microsoft = 'Microsoft OpenJDK'; zulu = 'Azul Zulu'; corretto = 'Amazon Corretto'; oracle = 'Oracle JDK' }
 
 $Patterns = @{
@@ -722,6 +770,8 @@ $Patterns = @{
     jdk      = '^(?i)((temurin|microsoft|zulu|corretto|oracle):)?\d+$'
     xampp    = '^8\.[12]$'
     intellij = '^(?i)(ultimate|community)$'
+    office   = '^(?i)(m365|home2024|ltsc2024|ltsc2021)$'
+    officeKey = '^[A-Za-z0-9]{5}(-[A-Za-z0-9]{5}){4}$'
 }
 
 # ============================================================================================
@@ -759,6 +809,10 @@ function Get-AppStatus {
             $v = @(foreach ($id in $ids) { if ($id -match '^ApacheFriends\.Xampp\.(8\.\d)$') { $Matches[1] } })
             if ($v.Count -or (Test-Path 'C:\xampp\xampp-control.exe')) { $s.On = $true; $s.Versions = $v }
         }
+        'office' {
+            if ((Test-Path $a.CheckPath) -or $ids.Contains('Microsoft.Office') -or
+                @($script:InstalledNames | Where-Object { $_ -like 'microsoft365*' -or $_ -like 'microsoftoffice*' }).Count) { $s.On = $true }
+        }
         'intellij' {
             $v = @(foreach ($e in 'Ultimate', 'Community') { if ($ids.Contains("JetBrains.IntelliJIDEA.$e") -or @($script:InstalledNames | Where-Object { $_ -like "intellijidea$($e.ToLower())*" }).Count) { $e.ToLower() } })
             if ($v.Count) { $s.On = $true; $s.Versions = $v; $s.Text = ($v -join ', ') }
@@ -792,6 +846,11 @@ function Get-OptionSummary {
         }
         'xampp' { return "PHP $($Opt.xampp)" }
         'intellij' { return (Get-Culture).TextInfo.ToTitleCase("$($Opt.intellij)".ToLower()) }
+        'office' {
+            $n = $OfficeEditions["$($Opt.office)".ToLower()].Name
+            if ($Opt.officeKey) { return "$n + key" }
+            return $n
+        }
     }
     return ''
 }
@@ -929,6 +988,11 @@ function Get-Tasks {
                 $id = "ApacheFriends.Xampp.$($Opt.xampp)"
                 $tasks.Add((New-Task -Key xampp -Name "XAMPP (PHP $($Opt.xampp))" -Methods @(@{ Type = 'winget'; Id = $id }) `
                     -CheckPath 'C:\xampp\xampp-control.exe' -WingetCheck $id -Tip 'XAMPP is in C:\xampp - start it from xampp-control.exe.'))
+            }
+            'office' {
+                $ed = "$($Opt.office)".ToLower()
+                $m = @{ Type = 'script'; Label = 'Office Deployment Tool'; Script = $OfficeScript; Edition = $ed; Key = $Opt.officeKey }
+                $tasks.Add((New-Task -Key office -Name $OfficeEditions[$ed].Name -Methods @($m) -CheckPath $a.CheckPath -Order 60 -Tip $a.Tip))
             }
             'intellij' {
                 $ed = (Get-Culture).TextInfo.ToTitleCase("$($Opt.intellij)".ToLower())
@@ -1232,6 +1296,7 @@ function Get-SourceText {
         'jdk' { $first = @($Opt.jdk)[0]; $v = (Split-JdkSpec $first).Vendor; return 'winget  ' + ($JdkVendors[$v] -f 'N') }
         'xampp' { return "winget  ApacheFriends.Xampp.$($Opt.xampp)" }
         'intellij' { return 'winget  JetBrains.IntelliJIDEA' }
+        'office' { return 'Office Deployment Tool (Microsoft CDN)' }
     }
     if ($a.Winget) { return "winget  $($a.Winget)" }
     return (Get-MethodLabel @($a.Fallback)[0])
@@ -1260,7 +1325,7 @@ function Get-PanelLines {
     & $kv 'Source' (Get-SourceText $a $S.Opt) 'Gray'
     $fb = @($a.Fallback | Where-Object { $_ } | ForEach-Object { Get-MethodShort $_ })
     if ($a.Winget -and $fb.Count) { & $kv 'Fallback' ($fb -join ', ') 'Gray' }
-    if ($st -and $st.On) { & $kv 'Status' "installed ($($st.Text))" 'Green' } else { & $kv 'Status' 'not installed' 'DarkGray' }
+    if ($st -and $st.On) { & $kv 'Status' $(if ($st.Text -eq 'installed') { 'installed' } else { "installed ($($st.Text))" }) 'Green' } else { & $kv 'Status' 'not installed' 'DarkGray' }
     if ($on) { & $kv 'Selected' 'yes' 'Green' } else { & $kv 'Selected' 'no  (Space to select)' 'DarkGray' }
     if ($a.Special) {
         $label = if ($a.Special -eq 'intellij') { 'Edition' } else { 'Version' }
@@ -1385,7 +1450,7 @@ function Draw-Picker {
     $l = New-Segs
     if ($S.Msg) { Add-Seg $l "  $($S.Msg)" Yellow; $S.Msg = '' }
     elseif (-not $showPanel -and $curApp) { Add-Seg $l "  $($curApp.Desc)" DarkGray }
-    else { Add-Seg $l "  Tip: press $($Gl.Right) on Node.js, Python, Java JDK, XAMPP or IntelliJ IDEA to pick versions." DarkGray }
+    else { Add-Seg $l "  Tip: press $($Gl.Right) on Node.js, Python, Java JDK, XAMPP, IntelliJ IDEA or Office to pick versions." DarkGray }
     Write-Segs 0 ($H - 2) $W $l
 
     $l = New-Segs
@@ -1429,6 +1494,11 @@ function Show-OptionsDialog {
         'xampp' {
             @{ Title = 'XAMPP'; Mode = 'radio'; Hint = 'Pick the PHP version.'; Value = "$($S.Opt.xampp)"
                Items = @(@{ V = '8.2'; L = 'PHP 8.2'; H = 'recommended' }, @{ V = '8.1'; L = 'PHP 8.1'; H = '' }) }
+        }
+        'office' {
+            @{ Title = 'Microsoft Office'; Mode = 'radio'; Hint = 'Downloaded from Microsoft. LTSC asks for your key.'
+               Value = "$($S.Opt.office)".ToLower()
+               Items = @(foreach ($k in $OfficeEditions.Keys) { @{ V = $k; L = $OfficeEditions[$k].Name; H = $OfficeEditions[$k].Hint } }) }
         }
         'intellij' {
             @{ Title = 'IntelliJ IDEA'; Mode = 'radio'; Hint = 'Pick the edition.'; Value = "$($S.Opt.intellij)".ToLower()
@@ -1496,7 +1566,7 @@ function Show-OptionsDialog {
         }
         Add-BoxLine $lines $bw (New-Segs) 'Cyan'
         $x = New-Segs
-        if ($inputMode) { Add-Seg $x 'Version: ' DarkGray; Add-Seg $x $inputText Yellow; Add-Seg $x '_' Yellow }
+        if ($inputMode) { Add-Seg $x $(if ($inputMode -eq 'key') { 'Product key (Enter to skip): ' } else { 'Version: ' }) DarkGray; Add-Seg $x $inputText Yellow; Add-Seg $x '_' Yellow }
         elseif ($err) { Add-Seg $x $err Red }
         Add-BoxLine $lines $bw $x 'Cyan'
         $x = New-Segs
@@ -1512,6 +1582,21 @@ function Show-OptionsDialog {
 
         $k = Read-Key
         if ($k.Key -eq [ConsoleKey]::C -and ($k.Modifiers -band [ConsoleModifiers]::Control)) { return $false }
+        if ($inputMode -eq 'key') {
+            if ($k.Key -eq [ConsoleKey]::Enter) {
+                $t = $inputText.Trim().TrimEnd('-').ToUpper()
+                if (-not $t -or $t -match $Patterns.officeKey) { $S.Opt.officeKey = $t; $inputMode = $false; break }
+                $err = 'A key looks like XXXXX-XXXXX-XXXXX-XXXXX-XXXXX'
+            } elseif ($k.Key -eq [ConsoleKey]::Escape) { $inputMode = $false }
+            elseif ($k.Key -eq [ConsoleKey]::Backspace) { if ($inputText.Length) { $inputText = $inputText.Substring(0, $inputText.Length - 1) } }
+            elseif ("$($k.KeyChar)" -match '^[A-Za-z0-9]$') {
+                if ($inputText.Length -lt 29) {
+                    $inputText += "$($k.KeyChar)".ToUpper()
+                    if ($inputText -match '^([A-Z0-9]{5}-){0,3}[A-Z0-9]{5}$' -and $inputText.Length -lt 29) { $inputText += '-' }
+                }
+            }
+            continue
+        }
         if ($inputMode) {
             if ($k.Key -eq [ConsoleKey]::Enter) {
                 $t = $inputText.Trim()
@@ -1539,11 +1624,17 @@ function Show-OptionsDialog {
         elseif ($spec.Mode -eq 'radio' -and ($k.Key -eq [ConsoleKey]::Spacebar -or $k.Key -eq [ConsoleKey]::Enter)) {
             if ($it.V -eq '__custom') {
                 if ($k.Key -eq [ConsoleKey]::Enter -and $custom -and $value -eq $custom) { break }
-                $inputMode = $true; $inputText = $(if ($custom) { $custom } else { '' })
+                $inputMode = 'custom'; $inputText = $(if ($custom) { $custom } else { '' })
                 continue
             }
             $value = $it.V
-            if ($k.Key -eq [ConsoleKey]::Enter) { break }
+            if ($k.Key -eq [ConsoleKey]::Enter) {
+                if ($a.Special -eq 'office' -and $OfficeEditions[$value].Volume) {
+                    $inputMode = 'key'; $inputText = "$($S.Opt.officeKey)"
+                    continue
+                }
+                break
+            }
         }
         elseif ($spec.Mode -eq 'check' -and $k.Key -eq [ConsoleKey]::Spacebar) {
             if ($vals -contains $it.V) {
@@ -1568,6 +1659,10 @@ function Show-OptionsDialog {
         'node' { $S.Opt.node = $value }
         'xampp' { $S.Opt.xampp = $value }
         'intellij' { $S.Opt.intellij = $value }
+        'office' {
+            $S.Opt.office = $value
+            if (-not $OfficeEditions[$value].Volume) { $S.Opt.officeKey = '' }
+        }
         'python' {
             $ordered = @($default) + @($items | Where-Object { $vals -contains $_.V -and $_.V -ne $default } | ForEach-Object { $_.V })
             $S.Opt.python = $ordered
@@ -1811,7 +1906,7 @@ $null = Initialize-Winget
 Update-InstalledScan
 
 # ---- gather selection: defaults < config < command line < picker
-$opt = @{ node = $null; python = @(); jdk = @(); xampp = $null; intellij = $null }
+$opt = @{ node = $null; python = @(); jdk = @(); xampp = $null; intellij = $null; office = $null; officeKey = '' }
 $keys = @()
 if ($Config) {
     # a path, a profile name from .\profiles (e.g. "full-dev"), or an http(s) URL
@@ -1830,6 +1925,8 @@ if ($Config) {
     if ($cfg.jdk)      { $opt.jdk = Split-List $cfg.jdk }
     if ($cfg.xampp)    { $opt.xampp = "$($cfg.xampp)" }
     if ($cfg.intellij) { $opt.intellij = "$($cfg.intellij)" }
+    if ($cfg.office)   { $opt.office = "$($cfg.office)" }
+    if ($cfg.officeKey) { $opt.officeKey = "$($cfg.officeKey)" }
 }
 if ($Apps)        { $keys += Split-List $Apps }
 if ($Recommended) { $keys += @($Catalog | Where-Object { $_.Rec } | ForEach-Object { $_.Key }) }
@@ -1839,12 +1936,16 @@ if ($Python)      { $opt.python = Split-List $Python }
 if ($Jdk)         { $opt.jdk = Split-List $Jdk }
 if ($Xampp)       { $opt.xampp = $Xampp }
 if ($IntelliJ)    { $opt.intellij = $IntelliJ }
+if ($Office)      { $opt.office = $Office }
+if ($OfficeKey)   { $opt.officeKey = $OfficeKey }
 if (-not $opt.node)         { $opt.node = $Defaults.node }
 if (-not $opt.python.Count) { $opt.python = $Defaults.python }
 if (-not $opt.jdk.Count)    { $opt.jdk = $Defaults.jdk }
 if (-not $opt.xampp)        { $opt.xampp = $Defaults.xampp }
 if (-not $opt.intellij)     { $opt.intellij = $Defaults.intellij }
-foreach ($f in 'node', 'xampp', 'intellij') {
+if (-not $opt.office)       { $opt.office = $Defaults.office }
+if ($opt.officeKey -and $opt.officeKey -notmatch $Patterns.officeKey) { Write-Fail 'Invalid Office product key format'; Exit-Wsi 1 }
+foreach ($f in 'node', 'xampp', 'intellij', 'office') {
     if ("$($opt[$f])" -notmatch $Patterns[$f]) { Write-Fail "Invalid $f value '$($opt[$f])'"; Exit-Wsi 1 }
 }
 foreach ($f in 'python', 'jdk') {
@@ -1888,7 +1989,7 @@ if ($needsNode.Count -and $keys -notcontains 'node' -and -not (Get-Command node 
 
 # ---- save selection so it can be replayed unattended
 $profileObj = [ordered]@{ apps = $keys }
-foreach ($f in 'node', 'python', 'jdk', 'xampp', 'intellij') { if ($keys -contains $f) { $profileObj[$f] = $opt[$f] } }
+foreach ($f in 'node', 'python', 'jdk', 'xampp', 'intellij', 'office') { if ($keys -contains $f) { $profileObj[$f] = $opt[$f] } }   # never the Office key
 $lastProfile = Join-Path $LogDir 'last-selection.json'
 try { $profileObj | ConvertTo-Json | Set-Content -Path $lastProfile -Encoding UTF8 } catch {}
 
@@ -1901,7 +2002,7 @@ if (-not $interactive) {
         $o = if ($a.Special) { Get-OptionSummary $opt $a } else { '' }
         Write-Host "  $($Gl.On)  " -ForegroundColor $(if ($state[0] -like 'skip*') { 'DarkGray' } else { 'Green' }) -NoNewline
         Write-Host $a.Name.PadRight(30) -ForegroundColor White -NoNewline
-        Write-Host $o.PadRight(26) -ForegroundColor Cyan -NoNewline
+        Write-Host ($o + '  ').PadRight(36) -ForegroundColor Cyan -NoNewline
         Write-Host $state[0] -ForegroundColor $state[1]
     }
     if (-not $Yes -and -not $DryRun) {
@@ -1912,7 +2013,7 @@ if (-not $interactive) {
 }
 
 # ---- install
-$tasks = Get-Tasks $keys $opt
+$tasks = @(Get-Tasks $keys $opt)
 Write-Rule ("{0} {1} item{2}" -f $(if ($DryRun) { 'Dry run:' } else { 'Installing' }), $tasks.Count, $(if ($tasks.Count -ne 1) { 's' } else { '' }))
 $sw = [Diagnostics.Stopwatch]::StartNew()
 $i = 0
